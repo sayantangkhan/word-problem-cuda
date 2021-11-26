@@ -4,10 +4,14 @@ use std::{collections::HashMap, str::FromStr};
 use crate::AppError;
 
 #[derive(Debug, PartialEq, Eq)]
+pub struct Word(Vec<(u32, i32)>);
+
+#[derive(Debug, PartialEq, Eq)]
 pub struct Presentation {
     num_generators: u32,
-    relations: Vec<Vec<(u32, i32)>>,
+    relations: Vec<Word>,
     symbols: Vec<String>,
+    symbol_table: HashMap<String, u32>,
 }
 
 impl FromStr for Presentation {
@@ -38,21 +42,32 @@ impl FromStr for Presentation {
 
         for inner_cap in relation_regex.captures_iter(relation_string) {
             let relation_string = &inner_cap[0];
-            relations.push(parse_relation(relation_string, &symbol_table)?);
+            relations.push(parse_word(relation_string, &symbol_table)?);
         }
 
         Ok(Presentation {
             num_generators,
             relations,
             symbols,
+            symbol_table,
         })
     }
 }
 
-fn parse_relation(
-    relation: &str,
-    symbol_table: &HashMap<String, u32>,
-) -> Result<Vec<(u32, i32)>, AppError> {
+pub fn parse_word_problem(
+    input_string: &str,
+    presentation: &Presentation,
+) -> Result<(Word, Word), AppError> {
+    let mut split = input_string.trim().split(' ');
+    let left = split.nth(0).ok_or(AppError::BadInput)?;
+    let right = split.nth(0).ok_or(AppError::BadInput)?;
+    Ok((
+        parse_word(left, &presentation.symbol_table)?,
+        parse_word(right, &presentation.symbol_table)?,
+    ))
+}
+
+fn parse_word(relation: &str, symbol_table: &HashMap<String, u32>) -> Result<Word, AppError> {
     let mut relation_vec: Vec<(u32, i32)> = Vec::new();
 
     for term in relation.split('.') {
@@ -66,20 +81,26 @@ fn parse_relation(
         relation_vec.push((*index, exponent));
     }
 
-    Ok(relation_vec)
+    Ok(Word(relation_vec))
 }
 
 #[cfg(test)]
 mod test {
-    use super::Presentation;
+    use std::collections::HashMap;
+
+    use super::{Presentation, Word};
 
     #[test]
     fn test_presentation_parser() {
         let input_string = "<a, b | a.b.a^-1.b^-1>";
+        let symbol_table: HashMap<String, u32> = [("a".to_string(), 0), ("b".to_string(), 1)]
+            .into_iter()
+            .collect();
         let expected_presentation = Presentation {
             num_generators: 2,
-            relations: vec![vec![(0, 1), (1, 1), (0, -1), (1, -1)]],
+            relations: vec![Word(vec![(0, 1), (1, 1), (0, -1), (1, -1)])],
             symbols: vec!["a".to_string(), "b".to_string()],
+            symbol_table,
         };
         assert_eq!(
             input_string.parse::<Presentation>().unwrap(),
@@ -87,10 +108,14 @@ mod test {
         );
 
         let input_string = "<a, ab | ab.a^-1.ab^-1>";
+        let symbol_table: HashMap<String, u32> = [("a".to_string(), 0), ("ab".to_string(), 1)]
+            .into_iter()
+            .collect();
         let expected_presentation = Presentation {
             num_generators: 2,
-            relations: vec![vec![(1, 1), (0, -1), (1, -1)]],
+            relations: vec![Word(vec![(1, 1), (0, -1), (1, -1)])],
             symbols: vec!["a".to_string(), "ab".to_string()],
+            symbol_table,
         };
         assert_eq!(
             input_string.parse::<Presentation>().unwrap(),

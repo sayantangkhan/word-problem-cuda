@@ -1,4 +1,4 @@
-mod presentation;
+pub mod presentation;
 
 use thiserror::Error;
 
