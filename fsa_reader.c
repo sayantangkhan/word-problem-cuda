@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifndef FSA_READER
+#define FSA_READER
+
 #define MAX_LEN 64
 
 // Struct describing a word acceptor FSA
@@ -48,14 +51,14 @@ GeneralMultiplier parse_general_multiplier(char* filename) {
   char buffer[MAX_LEN];
   GeneralMultiplier general_multiplier;
   fgets(buffer, MAX_LEN, fp);
-  general_multiplier.alphabet_size = atoi(buffer);
+  general_multiplier.alphabet_size = atoi(buffer) + 1;
   fgets(buffer, MAX_LEN, fp);
   general_multiplier.num_states = atoi(buffer);
   fgets(buffer, MAX_LEN, fp);
   general_multiplier.initial_state = atoi(buffer);
-  int binary_alphabet_size = (general_multiplier.alphabet_size + 1) * (general_multiplier.alphabet_size + 1) - 1;
+  int binary_alphabet_size = (general_multiplier.alphabet_size) * (general_multiplier.alphabet_size);
   general_multiplier.accepting_states = (int*) malloc(sizeof(int) * general_multiplier.num_states);
-  general_multiplier.transition_matrix = (int*) malloc(sizeof(int) * binary_alphabet_size);
+  general_multiplier.transition_matrix = (int*) malloc(sizeof(int) * binary_alphabet_size * general_multiplier.num_states);
   int i, j;
 
   for (i = 0; i < general_multiplier.num_states; i++) {
@@ -64,12 +67,16 @@ GeneralMultiplier parse_general_multiplier(char* filename) {
   }
 
   for (i = 0; i < general_multiplier.num_states; i++) {
-    for (j = 0; j < binary_alphabet_size; j++) {
+    for (j = 0; j < binary_alphabet_size - 1; j++) {
       fgets(buffer, MAX_LEN, fp);
       general_multiplier.transition_matrix[i * binary_alphabet_size + j] = atoi(buffer);
     }
+
+    general_multiplier.transition_matrix[i * binary_alphabet_size + j] = i;
   }
 
   fclose(fp);
   return general_multiplier;
 }
+
+#endif // FSA_READER

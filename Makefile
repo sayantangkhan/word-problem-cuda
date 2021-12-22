@@ -1,14 +1,10 @@
 all: release debug
 
 release:
-	nvcc -O3 -Xptxas -O3 stencil.cu -o build/stencil_cuda.release
+	nvcc -O3 -Xptxas -O3 main.cu -o build/word_problem.release
 
 debug:
-	nvcc -g -Xptxas -g stencil.cu -o build/stencil_cuda.debug
-	g++ -g stencil.cpp -o build/stencil_cpu.debug
-
-cpu:
-	g++ stencil.cpp -o build/stencil_cpu.debug
+	nvcc main.cu -o build/word_problem.debug
 
 clean:
 	rm -rf build/*
