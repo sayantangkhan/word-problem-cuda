@@ -25,9 +25,9 @@ int main(int argc, char* argv[]) {
   GeneralMultiplier* device_general_multiplier;
   cudaMalloc(&device_general_multiplier, sizeof(GeneralMultiplier));
   copy_general_multiplier(&general_multiplier, device_general_multiplier);
-  diagnostics<<<1,1>>>(device_general_multiplier);
+  // diagnostics<<<1,1>>>(device_general_multiplier);
 
-  int word[10] = {0, 3, 2, 1, 1, 3, 5, 5, 3, 0};
+  int word[10] = {0, 3, 0, 1, 1, 3, 5, 5, 3, 0};
   int generator_to_multiply = 1;
   multiply_with_generator(10, word, generator_to_multiply, device_general_multiplier, &general_multiplier, NULL);
 
