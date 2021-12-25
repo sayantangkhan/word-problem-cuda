@@ -72,21 +72,21 @@ __global__ void compute_size_one_paths(int word_length, int* word, GeneralMultip
   }
 }
 
-__global__ void combine_paths(int word_blocks, Slice* next_slices, int prev_word_blocks, Slice* slices, int* internal_path_matrix, int* temp_buffer, int num_states, int word_length) {
+__global__ void combine_paths(int next_num_word_blocks, Slice* next_slices, int num_word_blocks, Slice* slices, int* internal_path_matrix, int* temp_path_matrix, int num_states, int word_length) {
   int global_thread_id = blockIdx.x * blockDim.x + threadIdx.x;
-  if (global_thread_id < word_blocks * num_states * num_states) {
+  if (global_thread_id < next_num_word_blocks * num_states * num_states) {
     int word_block_index = global_thread_id/(num_states * num_states);
     int remainder = global_thread_id%(num_states * num_states);
     int initial_state = remainder/num_states;
     int final_state = remainder%num_states;
 
-    if (word_block_index*2 + 1 == prev_word_blocks) {
+    if (word_block_index*2 + 1 == num_word_blocks) {
       next_slices[word_block_index] = slices[word_block_index*2];
-      // Copying to temp_buffer
+      // Copying to temp_path_matrix
       int left = slices[word_block_index*2].start_index;
       int right = slices[word_block_index*2].end_index;
       int letter_index = ((initial_state * num_states) + final_state)*word_length + left;
-      memcpy(&temp_buffer[letter_index], &internal_path_matrix[letter_index], sizeof(int) * (right-left));
+      memcpy(&temp_path_matrix[letter_index], &internal_path_matrix[letter_index], sizeof(int) * (right-left));
       return;
     }
 
@@ -111,84 +111,132 @@ __global__ void combine_paths(int word_blocks, Slice* next_slices, int prev_word
     if (found) {
       int combined_path_letter_index = ((initial_state * num_states) + final_state)*word_length + left;
       int left_path_letter_index = ((initial_state * num_states) + middle_state)*word_length + left;
-      memcpy(&temp_buffer[combined_path_letter_index], &internal_path_matrix[left_path_letter_index], sizeof(int) * (middle - left));
+      memcpy(&temp_path_matrix[combined_path_letter_index], &internal_path_matrix[left_path_letter_index], sizeof(int) * (middle - left));
 
       combined_path_letter_index = ((initial_state * num_states) + final_state)*word_length + middle;
       int right_path_letter_index = ((middle_state * num_states) + final_state)*word_length + middle;
-      memcpy(&temp_buffer[combined_path_letter_index], &internal_path_matrix[right_path_letter_index], sizeof(int)*(right - middle));
+      memcpy(&temp_path_matrix[combined_path_letter_index], &internal_path_matrix[right_path_letter_index], sizeof(int)*(right - middle));
     } else {
       int combined_path_first_letter_index = ((initial_state * num_states) + final_state)*word_length + left;
-      temp_buffer[combined_path_first_letter_index] = -1;
+      temp_path_matrix[combined_path_first_letter_index] = -1;
+    }
+  }
+}
+
+__global__ void multiply_in_kernel(int* internal_path_matrix, int num_states, int word_length, int* final_states, int num_final_states, int initial_state, int* device_result) {
+  int i;
+  for(i=0; i<num_final_states; i++) {
+    int final_state = final_states[i];
+
+    // Debugging info, remove later.
+    printf("Final state = %d\n", final_state);
+    int j;
+    for (j=0; j<word_length; j++) {
+      printf("%d ", internal_path_matrix[((initial_state * num_states) + final_state)*word_length + j]);
+    }
+    //
+
+    if (internal_path_matrix[((initial_state * num_states) + final_state)*word_length] != -1) {
+      memcpy(device_result, &internal_path_matrix[((initial_state * num_states) + final_state)*word_length], sizeof(int) * word_length);
+      return;
     }
   }
 }
 
 int multiply_with_generator(int word_length, int* word, int generator_to_multiply, GeneralMultiplier* device_general_multiplier, GeneralMultiplier* host_general_multiplier, int* result) {
-  int* device_word;
+  int *device_word;
   int total_num_threads;
   Slice *slices, *next_slices, *temp_slice;
-  int *internal_path_matrix, *temp_buffer, *to_swap;
+  int *internal_path_matrix, *temp_path_matrix, *to_swap;
   int num_states = host_general_multiplier->num_states;
 
+  // Padding the word by a single letter
+  int padded_word_length = word_length + 1;
   int padding_symbol = host_general_multiplier->alphabet_size - 1;
-  cudaMalloc(&device_word, sizeof(int) * (word_length + 1));
+  cudaMalloc(&device_word, sizeof(int) * (padded_word_length));
   cudaMemcpy(device_word, word, sizeof(int) * word_length, cudaMemcpyHostToDevice);
   cudaMemcpy(&device_word[word_length], &padding_symbol, sizeof(int), cudaMemcpyHostToDevice); // Adding the padding symbol
 
-  // Allocating memory for path matrices
-  cudaMalloc(&slices, sizeof(Slice) * (word_length + 1));
-  cudaMalloc(&next_slices, sizeof(Slice) * (word_length + 1));
-  cudaMalloc(&internal_path_matrix, sizeof(int) * num_states * num_states * (word_length + 1));
-  cudaMemset(internal_path_matrix, -1, sizeof(int) * num_states * num_states * (word_length + 1));
-  cudaMalloc(&temp_buffer, sizeof(int) * num_states * num_states * (word_length + 1));
-  cudaMemset(temp_buffer, -1, sizeof(int) * num_states * num_states * (word_length + 1));
+  // Allocating and setting memory for path matrices
+  cudaMalloc(&slices, sizeof(Slice) * (padded_word_length));
+  cudaMalloc(&next_slices, sizeof(Slice) * (padded_word_length));
+  cudaMalloc(&internal_path_matrix, sizeof(int) * num_states * num_states * (padded_word_length));
+  cudaMemset(internal_path_matrix, -1, sizeof(int) * num_states * num_states * (padded_word_length));
+  cudaMalloc(&temp_path_matrix, sizeof(int) * num_states * num_states * (padded_word_length));
+  cudaMemset(temp_path_matrix, -1, sizeof(int) * num_states * num_states * (padded_word_length));
 
+  // Populating slices in parallel
   int num_blocks;
-  if ((word_length + 1) % BLOCK_SIZE == 0) {
-    num_blocks = (word_length + 1)/BLOCK_SIZE;
+  if ((padded_word_length) % BLOCK_SIZE == 0) {
+    num_blocks = (padded_word_length)/BLOCK_SIZE;
   } else {
-    num_blocks = (word_length + 1)/BLOCK_SIZE + 1;
+    num_blocks = (padded_word_length)/BLOCK_SIZE + 1;
   }
-  populate_slices<<<num_blocks, BLOCK_SIZE>>>(word_length + 1, device_general_multiplier, slices);
+  populate_slices<<<num_blocks, BLOCK_SIZE>>>(padded_word_length, device_general_multiplier, slices);
 
-  if (((word_length + 1)*num_states) % BLOCK_SIZE == 0) {
-    num_blocks = ((word_length + 1) * num_states)/BLOCK_SIZE;
+  // Computing size one paths in parallel
+  if (((padded_word_length)*num_states) % BLOCK_SIZE == 0) {
+    num_blocks = ((padded_word_length) * num_states)/BLOCK_SIZE;
   } else {
-    num_blocks = ((word_length + 1) * num_states)/BLOCK_SIZE + 1;
+    num_blocks = ((padded_word_length) * num_states)/BLOCK_SIZE + 1;
   }
-  compute_size_one_paths<<<num_blocks, BLOCK_SIZE>>>(word_length + 1, device_word, device_general_multiplier, slices, internal_path_matrix);
+  compute_size_one_paths<<<num_blocks, BLOCK_SIZE>>>(padded_word_length, device_word, device_general_multiplier, slices, internal_path_matrix);
 
-  int prev_word_blocks = word_length + 1;
-  int word_blocks = prev_word_blocks;
+  // Combining paths to form larger paths
+  int num_word_blocks = padded_word_length;
+  int next_num_word_blocks = num_word_blocks;
 
-  while (word_blocks > 1) {
+  while (next_num_word_blocks > 1) {
     // Kernel combining paths, and creating new slices
-    if (word_blocks % 2 == 0) {
-      word_blocks = word_blocks/2;
+    if (next_num_word_blocks % 2 == 0) {
+      next_num_word_blocks = next_num_word_blocks/2;
     } else {
-      word_blocks = word_blocks/2 + 1;
+      next_num_word_blocks = next_num_word_blocks/2 + 1;
     }
 
-    total_num_threads = word_blocks * num_states * num_states;
+    total_num_threads = next_num_word_blocks * num_states * num_states;
     if (total_num_threads % BLOCK_SIZE == 0) {
       num_blocks = total_num_threads/BLOCK_SIZE;
     } else {
       num_blocks = total_num_threads/BLOCK_SIZE + 1;
     }
-    combine_paths<<<num_blocks, BLOCK_SIZE>>>(word_blocks, next_slices, prev_word_blocks, slices, internal_path_matrix, temp_buffer, num_states, word_length + 1);
+    combine_paths<<<num_blocks, BLOCK_SIZE>>>(next_num_word_blocks, next_slices, num_word_blocks, slices, internal_path_matrix, temp_path_matrix, num_states, padded_word_length);
 
     // Swapping slices, lengths and buffers
     temp_slice = slices;
     slices = next_slices;
     next_slices = temp_slice;
-    prev_word_blocks = word_blocks;
+    num_word_blocks = next_num_word_blocks;
     to_swap = internal_path_matrix;
-    internal_path_matrix = temp_buffer;
-    temp_buffer = to_swap;
+    internal_path_matrix = temp_path_matrix;
+    temp_path_matrix = to_swap;
   }
 
-  size_one_diagnostic<<<1,1>>>(internal_path_matrix);
+  // size_one_diagnostic<<<1,1>>>(internal_path_matrix);
+  // cudaDeviceSynchronize();
+
+  //
+  // int stateLabel = compute_state_label(generator_to_multiply);
+  int stateLabel = 1;
+  int initial_state = host_general_multiplier->initial_state;
+  int num_final_states = 0;
+  int* host_final_states = (int*) malloc(sizeof(int) * num_states);
+  int* device_final_states;
+  cudaMalloc(&device_final_states, sizeof(int) * num_states);
+  int i;
+  for(i=0; i<num_states; i++) {
+    if(host_general_multiplier->accepting_states[i] == stateLabel) {
+      host_final_states[num_final_states] = i;
+      num_final_states++;
+    }
+  }
+  cudaMemcpy(device_final_states, host_final_states, sizeof(int) * num_final_states, cudaMemcpyHostToDevice);
+
+  int *device_result;
+  cudaMalloc(&device_result, sizeof(int) * padded_word_length);
+  multiply_in_kernel<<<1,1>>>(internal_path_matrix, num_states, padded_word_length, device_final_states, num_final_states, initial_state, device_result);
   cudaDeviceSynchronize();
+  cudaMemcpy(result, device_result, sizeof(int)*padded_word_length, cudaMemcpyDeviceToHost);
 
   return 0; // Temporary
 }
