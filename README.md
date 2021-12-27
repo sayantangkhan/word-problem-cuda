@@ -8,4 +8,6 @@ The algorithm was described in [this paper](https://doi.org/10.1145/129712.12972
 - [x] Improved FSA parser
 
 ## Things to do
-- [ ] Test multiplier on really large inputs
+- [x] Test multiplier on really large inputs
+- [ ] Figure out for what range of inputs is the runtime logarithmic
+- [ ] Figure out memory usage of program

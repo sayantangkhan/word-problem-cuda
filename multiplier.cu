@@ -131,15 +131,6 @@ __global__ void multiply_in_kernel(int* internal_path_matrix, int num_states, in
   int i;
   for(i=0; i<num_final_states; i++) {
     int final_state = final_states[i];
-
-    // Debugging info, remove later.
-    // printf("Final state = %d\n", final_state);
-    // int j;
-    // for (j=0; j<word_length; j++) {
-    //   printf("%d ", internal_path_matrix[((initial_state * num_states) + final_state)*word_length + j]);
-    // }
-    //
-
     if (internal_path_matrix[((initial_state * num_states) + final_state)*word_length] != -1) {
       memcpy(device_result, &internal_path_matrix[((initial_state * num_states) + final_state)*word_length], sizeof(int) * word_length);
       return;
@@ -238,7 +229,6 @@ int multiply_with_generator(int word_length, int* word, int generator_to_multipl
   int *device_result;
   cudaMalloc(&device_result, sizeof(int) * padded_word_length);
   multiply_in_kernel<<<1,1>>>(internal_path_matrix, num_states, padded_word_length, device_final_states, num_final_states, initial_state, device_result);
-  cudaDeviceSynchronize();
   cudaMemcpy(result, device_result, sizeof(int)*padded_word_length, cudaMemcpyDeviceToHost);
 
   return 0; // Temporary
