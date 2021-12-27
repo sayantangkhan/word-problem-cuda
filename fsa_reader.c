@@ -64,7 +64,6 @@ GeneralMultiplier parse_general_multiplier(char* filename) {
     int state, label;
     fscanf(fp, "%d", &state);
     fscanf(fp, "%d", &label);
-    printf("[%d, %d]\n", state, label);
     general_multiplier.accepting_states[state] = label;
   }
 

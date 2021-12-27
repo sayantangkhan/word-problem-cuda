@@ -23,7 +23,6 @@ int main(int argc, char* argv[]) {
   int width = (general_multiplier.alphabet_size) * (general_multiplier.alphabet_size);
   printf("%d\n", general_multiplier.transition_matrix[initial_state * width + letter]);
   /* printf("%d\n", general_multiplier.accepting_states[initial_state]); */
-  /*
   GeneralMultiplier* device_general_multiplier;
   cudaMalloc(&device_general_multiplier, sizeof(GeneralMultiplier));
   copy_general_multiplier(&general_multiplier, device_general_multiplier);
@@ -32,13 +31,12 @@ int main(int argc, char* argv[]) {
   int word[10] = {0, 3, 1, 3, 5, 5, 3, 0};
   int generator_to_multiply = 1;
   int* result = (int*) malloc(sizeof(int) * 11);
-  multiply_with_generator(8, word, generator_to_multiply, device_general_multiplier, &general_multiplier, result);
+  multiply_with_generator(2, word, generator_to_multiply, device_general_multiplier, &general_multiplier, result);
   cudaDeviceSynchronize();
   int i;
-  for (i=0; i<9; i++) {
+  for (i=0; i<3; i++) {
     printf("%d ", result[i]);
   }
   printf("\n");
-  */
   exit(0);
 }
