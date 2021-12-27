@@ -16,12 +16,14 @@ int main(int argc, char* argv[]) {
   printf("General multiplier alphabet = %d\n", general_multiplier.alphabet_size);
   printf("General multiplier states = %d\n", general_multiplier.num_states);
   printf("General multiplier initial state = %d\n", general_multiplier.initial_state);
+  printf("General multiplier state label = %d\n", general_multiplier.state_labels[8]);
   int initial_state = 1;
   int letter = 8;
   /* int width = word_acceptor.alphabet_size; */
   int width = (general_multiplier.alphabet_size) * (general_multiplier.alphabet_size);
   printf("%d\n", general_multiplier.transition_matrix[initial_state * width + letter]);
   /* printf("%d\n", general_multiplier.accepting_states[initial_state]); */
+  /*
   GeneralMultiplier* device_general_multiplier;
   cudaMalloc(&device_general_multiplier, sizeof(GeneralMultiplier));
   copy_general_multiplier(&general_multiplier, device_general_multiplier);
@@ -37,6 +39,6 @@ int main(int argc, char* argv[]) {
     printf("%d ", result[i]);
   }
   printf("\n");
-
+  */
   exit(0);
 }

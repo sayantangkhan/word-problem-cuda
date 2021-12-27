@@ -5,7 +5,7 @@ The algorithm was described in [this paper](https://doi.org/10.1145/129712.12972
 ## Things to implement
 - [x] General multiplier
 - [ ] Geodesic concatenator
-- [ ] Improved FSA parser
+- [x] Improved FSA parser
 
 ## Things to do
 - [ ] Test multiplier on really large inputs

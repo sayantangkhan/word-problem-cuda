@@ -1384,6 +1384,8 @@ if __name__ == "__main__":
     print(num_states)
     # Print initial state
     print(initial_state)
+    # Print number of accepting states
+    print(len(accepting_states_raw))
     # Print mapping of labels to letters
     print(" ".join(str(i) for i in reversed_state_labels))
     # Print label of each state. A positive label is an accepting state.
