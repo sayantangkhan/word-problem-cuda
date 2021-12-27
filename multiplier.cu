@@ -90,7 +90,10 @@ __global__ void combine_paths(int next_num_word_blocks, Slice* next_slices, int 
       int left = slices[word_block_index*2].start_index;
       int right = slices[word_block_index*2].end_index;
       int letter_index = ((initial_state * num_states) + final_state)*word_length + left;
-      memcpy(&temp_path_matrix[letter_index], &internal_path_matrix[letter_index], sizeof(int) * (right-left));
+      int i;
+      for (i=0; i<(right-left); i++) {
+	temp_path_matrix[letter_index + i] = internal_path_matrix[letter_index + i];
+      }
       return;
     }
 
@@ -115,11 +118,16 @@ __global__ void combine_paths(int next_num_word_blocks, Slice* next_slices, int 
     if (found) {
       int combined_path_letter_index = ((initial_state * num_states) + final_state)*word_length + left;
       int left_path_letter_index = ((initial_state * num_states) + middle_state)*word_length + left;
-      memcpy(&temp_path_matrix[combined_path_letter_index], &internal_path_matrix[left_path_letter_index], sizeof(int) * (middle - left));
+      int i;
+      for (i=0; i<(middle-left); i++) {
+	temp_path_matrix[combined_path_letter_index + i] = internal_path_matrix[left_path_letter_index + i];
+      }
 
       combined_path_letter_index = ((initial_state * num_states) + final_state)*word_length + middle;
       int right_path_letter_index = ((middle_state * num_states) + final_state)*word_length + middle;
-      memcpy(&temp_path_matrix[combined_path_letter_index], &internal_path_matrix[right_path_letter_index], sizeof(int)*(right - middle));
+      for(i=0; i<(right-middle); i++) {
+	temp_path_matrix[combined_path_letter_index + i] = internal_path_matrix[right_path_letter_index + i];
+      }
     } else {
       int combined_path_first_letter_index = ((initial_state * num_states) + final_state)*word_length + left;
       temp_path_matrix[combined_path_first_letter_index] = -1;
