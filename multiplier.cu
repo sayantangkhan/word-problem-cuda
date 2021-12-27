@@ -15,12 +15,16 @@ __host__ void copy_general_multiplier(GeneralMultiplier* host_general_multiplier
 
   int binary_alphabet_size = host_general_multiplier->alphabet_size * host_general_multiplier->alphabet_size;
 
-  int *device_accepting_states, *device_transition_matrix;
+  int *device_state_labels, *device_accepting_states, *device_transition_matrix;
+  cudaMalloc(&device_state_labels, sizeof(int) * host_general_multiplier->alphabet_size);
   cudaMalloc(&device_accepting_states, sizeof(int) * host_general_multiplier->num_states);
   cudaMalloc(&device_transition_matrix, sizeof(int) * host_general_multiplier->num_states * binary_alphabet_size);
+
+  cudaMemcpy(device_state_labels, host_general_multiplier->state_labels, sizeof(int) * host_general_multiplier->alphabet_size, cudaMemcpyHostToDevice);
   cudaMemcpy(device_accepting_states, host_general_multiplier->accepting_states, sizeof(int) * host_general_multiplier->num_states, cudaMemcpyHostToDevice);
   cudaMemcpy(device_transition_matrix, host_general_multiplier->transition_matrix, sizeof(int) * host_general_multiplier->num_states * binary_alphabet_size, cudaMemcpyHostToDevice);
 
+  cudaMemcpy(&device_general_multiplier->state_labels, &device_state_labels, sizeof(int*), cudaMemcpyHostToDevice);
   cudaMemcpy(&device_general_multiplier->accepting_states, &device_accepting_states, sizeof(int*), cudaMemcpyHostToDevice);
   cudaMemcpy(&device_general_multiplier->transition_matrix, &device_transition_matrix, sizeof(int*), cudaMemcpyHostToDevice);
 }
@@ -129,11 +133,11 @@ __global__ void multiply_in_kernel(int* internal_path_matrix, int num_states, in
     int final_state = final_states[i];
 
     // Debugging info, remove later.
-    printf("Final state = %d\n", final_state);
-    int j;
-    for (j=0; j<word_length; j++) {
-      printf("%d ", internal_path_matrix[((initial_state * num_states) + final_state)*word_length + j]);
-    }
+    // printf("Final state = %d\n", final_state);
+    // int j;
+    // for (j=0; j<word_length; j++) {
+    //   printf("%d ", internal_path_matrix[((initial_state * num_states) + final_state)*word_length + j]);
+    // }
     //
 
     if (internal_path_matrix[((initial_state * num_states) + final_state)*word_length] != -1) {
@@ -216,8 +220,7 @@ int multiply_with_generator(int word_length, int* word, int generator_to_multipl
   // cudaDeviceSynchronize();
 
   //
-  // int stateLabel = compute_state_label(generator_to_multiply);
-  int stateLabel = 1;
+  int stateLabel = host_general_multiplier->state_labels[generator_to_multiply];
   int initial_state = host_general_multiplier->initial_state;
   int num_final_states = 0;
   int* host_final_states = (int*) malloc(sizeof(int) * num_states);
