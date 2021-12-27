@@ -1,7 +1,7 @@
 #include "fsa_reader.c"
 #include <stdio.h>
 
-#define BLOCK_SIZE 64 // Tweak later
+#define BLOCK_SIZE 1024 // Tweak later
 
 typedef struct Slice {
   int start_index; // Inclusive
