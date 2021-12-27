@@ -9,5 +9,7 @@ The algorithm was described in [this paper](https://doi.org/10.1145/129712.12972
 
 ## Things to do
 - [x] Test multiplier on really large inputs
-- [ ] Figure out for what range of inputs is the runtime logarithmic
+- [x] Figure out for what range of inputs is the runtime logarithmic
+- [ ] See if moving data into block shared memory can speed things up
+- [ ] Play around with block size to maximize occupancy
 - [ ] Figure out memory usage of program
