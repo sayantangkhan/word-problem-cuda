@@ -4,12 +4,18 @@ The algorithm was described in [this paper](https://doi.org/10.1145/129712.12972
 
 ## Things to implement
 - [x] General multiplier
-- [ ] Geodesic concatenator
 - [x] Improved FSA parser
+- [ ] Geodesic concatenator
 
-## Things to do
-- [x] Test multiplier on really large inputs
-- [x] Figure out for what range of inputs is the runtime logarithmic
-- [ ] See if moving data into block shared memory can speed things up
-- [ ] Play around with block size to maximize occupancy
-- [ ] Figure out memory usage of program
+### General todo
+- [ ] Move FSAs to device constant memory
+- [ ] Run benchmarks on other hyperbolic groups like the Von Dyck groups
+
+### Multiplier todo
+- [ ] Modify multiplier to return length of word
+- [ ] Write variant that can multiply with words of length at most 2 delta
+
+### Concatenator todo
+- [ ] Write serial program to pre-compute small triangles
+- [ ] Implement actual concatenator
+- [ ] Write concatenator benchmarks
