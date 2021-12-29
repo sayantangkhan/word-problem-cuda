@@ -3,14 +3,15 @@
 #include <stdio.h>
 
 int main(int argc, char* argv[]) {
-  if (argc < 3) {
+  if (argc < 2) {
     exit(-1);
   }
 
-  char* wa_filename = argv[1];
-  char* gm_filename = argv[2];
-  WordAcceptor word_acceptor = parse_word_acceptor(wa_filename);
-  GeneralMultiplier general_multiplier = parse_general_multiplier(gm_filename);
+  char* hg_filename = argv[1];
+  HyperbolicGroup hyperbolic_group = parse_hyperbolic_group(hg_filename);
+  WordAcceptor word_acceptor = hyperbolic_group.word_acceptor;
+  GeneralMultiplier general_multiplier = hyperbolic_group.general_multiplier;
+  printf("Hyperbolicity constant = %d\n", hyperbolic_group.hyperbolicity_constant);
   printf("Word acceptor states = %d\n", word_acceptor.num_states);
   printf("Word acceptor initial state = %d\n", word_acceptor.initial_state);
   printf("General multiplier alphabet = %d\n", general_multiplier.alphabet_size);

@@ -44,16 +44,16 @@ WordList parse_multiple_words(char* filename) {
 }
 
 int main(int argc, char* argv[]) {
-  if (argc < 4) {
+  if (argc < 3) {
     exit(-1);
   }
 
-  char* wa_filename = argv[1];
-  char* gm_filename = argv[2];
-  char* wordlist_filename = argv[3];
+  char* hg_filename = argv[1];
+  char* wordlist_filename = argv[2];
 
-  WordAcceptor word_acceptor = parse_word_acceptor(wa_filename);
-  GeneralMultiplier general_multiplier = parse_general_multiplier(gm_filename);
+  HyperbolicGroup hyperbolic_group = parse_hyperbolic_group(hg_filename);
+  WordAcceptor word_acceptor = hyperbolic_group.word_acceptor;
+  GeneralMultiplier general_multiplier = hyperbolic_group.general_multiplier;
   WordList word_list = parse_multiple_words(wordlist_filename);
 
   GeneralMultiplier* device_general_multiplier;

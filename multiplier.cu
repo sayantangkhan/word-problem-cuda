@@ -239,5 +239,10 @@ int multiply_with_generator(int word_length, int* word, int generator_to_multipl
   multiply_in_kernel<<<1,1>>>(internal_path_matrix, num_states, padded_word_length, device_final_states, num_final_states, initial_state, device_result);
   cudaMemcpy(result, device_result, sizeof(int)*padded_word_length, cudaMemcpyDeviceToHost);
 
-  return 0; // Temporary
+  int actual_word_length = padded_word_length;
+  while (result[actual_word_length - 1] == padding_symbol) {
+    actual_word_length--;
+  }
+
+  return actual_word_length; // Temporary
 }

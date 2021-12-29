@@ -10,9 +10,10 @@ The algorithm was described in [this paper](https://doi.org/10.1145/129712.12972
 ### General todo
 - [ ] Move FSAs to device constant memory
 - [ ] Run benchmarks on other hyperbolic groups like the Von Dyck groups
+- [ ] Test that ShortLex is closed under inversion
 
 ### Multiplier todo
-- [ ] Modify multiplier to return length of word
+- [x] Modify multiplier to return length of word
 - [ ] Write variant that can multiply with words of length at most 2 delta
 
 ### Concatenator todo
