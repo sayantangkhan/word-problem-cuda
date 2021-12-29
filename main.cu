@@ -32,9 +32,9 @@ int main(int argc, char* argv[]) {
   // diagnostics<<<1,1>>>(device_general_multiplier);
 
   int word[10] = {0, 3, 1, 3, 5, 5, 3, 0};
-  int generator_to_multiply = 1;
-  int* result = (int*) malloc(sizeof(int) * 11);
-  int res_length = multiply_with_generator(2, word, generator_to_multiply, result);
+  int word_to_multiply[4] = {1, 2, 2, 3};
+  int* result = (int*) malloc(sizeof(int) * 14);
+  int res_length = multiply_with_word(10, word, 4, word_to_multiply, result);
   cudaDeviceSynchronize();
   int i;
   for (i=0; i<res_length; i++) {
