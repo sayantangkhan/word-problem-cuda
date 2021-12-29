@@ -1,5 +1,6 @@
 #include "fsa_reader.c"
 #include "multiplier.cu"
+#include "misc.cu"
 #include <stdio.h>
 
 typedef struct Word {
@@ -52,13 +53,14 @@ int main(int argc, char* argv[]) {
   char* wordlist_filename = argv[2];
 
   HyperbolicGroup hyperbolic_group = parse_hyperbolic_group(hg_filename);
-  WordAcceptor word_acceptor = hyperbolic_group.word_acceptor;
-  GeneralMultiplier general_multiplier = hyperbolic_group.general_multiplier;
+  host_hyperbolic_group = (HyperbolicGroup *) malloc(sizeof(HyperbolicGroup));
+  memcpy(host_hyperbolic_group, &hyperbolic_group, sizeof(HyperbolicGroup));
+
+  WordAcceptor word_acceptor = host_hyperbolic_group->word_acceptor;
+  GeneralMultiplier general_multiplier = host_hyperbolic_group->general_multiplier;
   WordList word_list = parse_multiple_words(wordlist_filename);
 
-  GeneralMultiplier* device_general_multiplier;
-  cudaMalloc(&device_general_multiplier, sizeof(GeneralMultiplier));
-  copy_general_multiplier(&general_multiplier, device_general_multiplier);
+  copy_hg_to_device();
 
   int j;
   for (j=0; j<word_list.length; j++) {
@@ -76,7 +78,7 @@ int main(int argc, char* argv[]) {
     cudaEventRecord(start);
 
     // Actual computation
-    multiply_with_generator(word.length, word.word, generator_to_multiply, device_general_multiplier, &general_multiplier, result);
+    multiply_with_generator(word.length, word.word, generator_to_multiply, result);
     cudaDeviceSynchronize();
 
     // Stopping recording

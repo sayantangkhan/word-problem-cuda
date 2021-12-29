@@ -8,9 +8,9 @@ The algorithm was described in [this paper](https://doi.org/10.1145/129712.12972
 - [ ] Geodesic concatenator
 
 ### General todo
-- [ ] Move FSAs to device constant memory
+- [x] Move FSAs to global memory
 - [ ] Run benchmarks on other hyperbolic groups like the Von Dyck groups
-- [ ] Test that ShortLex is closed under inversion
+- [x] Test that ShortLex is closed under inversion (experiments seem to suggest so)
 
 ### Multiplier todo
 - [x] Modify multiplier to return length of word
@@ -20,3 +20,7 @@ The algorithm was described in [this paper](https://doi.org/10.1145/129712.12972
 - [ ] Write serial program to pre-compute small triangles
 - [ ] Implement actual concatenator
 - [ ] Write concatenator benchmarks
+
+### Optimization todo
+- [ ] Move FSA to constant memory
+- [ ] Use block shared memory

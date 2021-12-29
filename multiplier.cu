@@ -8,38 +8,6 @@ typedef struct Slice {
   int end_index; // Exclusive
 } Slice;
 
-__host__ void copy_general_multiplier(GeneralMultiplier* host_general_multiplier, GeneralMultiplier* device_general_multiplier) {
-  cudaMemcpy(&device_general_multiplier->alphabet_size, &host_general_multiplier->alphabet_size, sizeof(int), cudaMemcpyHostToDevice);
-  cudaMemcpy(&device_general_multiplier->num_states, &host_general_multiplier->num_states, sizeof(int), cudaMemcpyHostToDevice);
-  cudaMemcpy(&device_general_multiplier->initial_state, &host_general_multiplier->initial_state, sizeof(int), cudaMemcpyHostToDevice);
-
-  int binary_alphabet_size = host_general_multiplier->alphabet_size * host_general_multiplier->alphabet_size;
-
-  int *device_state_labels, *device_accepting_states, *device_transition_matrix;
-  cudaMalloc(&device_state_labels, sizeof(int) * host_general_multiplier->alphabet_size);
-  cudaMalloc(&device_accepting_states, sizeof(int) * host_general_multiplier->num_states);
-  cudaMalloc(&device_transition_matrix, sizeof(int) * host_general_multiplier->num_states * binary_alphabet_size);
-
-  cudaMemcpy(device_state_labels, host_general_multiplier->state_labels, sizeof(int) * host_general_multiplier->alphabet_size, cudaMemcpyHostToDevice);
-  cudaMemcpy(device_accepting_states, host_general_multiplier->accepting_states, sizeof(int) * host_general_multiplier->num_states, cudaMemcpyHostToDevice);
-  cudaMemcpy(device_transition_matrix, host_general_multiplier->transition_matrix, sizeof(int) * host_general_multiplier->num_states * binary_alphabet_size, cudaMemcpyHostToDevice);
-
-  cudaMemcpy(&device_general_multiplier->state_labels, &device_state_labels, sizeof(int*), cudaMemcpyHostToDevice);
-  cudaMemcpy(&device_general_multiplier->accepting_states, &device_accepting_states, sizeof(int*), cudaMemcpyHostToDevice);
-  cudaMemcpy(&device_general_multiplier->transition_matrix, &device_transition_matrix, sizeof(int*), cudaMemcpyHostToDevice);
-}
-
-// __global__ void diagnostics(GeneralMultiplier* general_multiplier) {
-//   printf("General multiplier alphabet = %d\n", general_multiplier->alphabet_size);
-//   printf("General multiplier states = %d\n", general_multiplier->num_states);
-//   printf("General multiplier initial state = %d\n", general_multiplier->initial_state);
-//   int initial_state = 1;
-//   int letter = 8;
-//   /* int width = word_acceptor.alphabet_size; */
-//   int width = (general_multiplier->alphabet_size) * (general_multiplier->alphabet_size);
-//   printf("%d\n", general_multiplier->transition_matrix[initial_state * width + letter]);
-// }
-
 __global__ void size_one_diagnostic(int* internal_path_matrix) {
   printf("SOD starting\n");
   int initial_state = 1;
@@ -146,7 +114,11 @@ __global__ void multiply_in_kernel(int* internal_path_matrix, int num_states, in
   }
 }
 
-int multiply_with_generator(int word_length, int* word, int generator_to_multiply, GeneralMultiplier* device_general_multiplier, GeneralMultiplier* host_general_multiplier, int* result) {
+int multiply_with_generator(int word_length, int* word, int generator_to_multiply, int* result) {
+
+  GeneralMultiplier* device_general_multiplier = &device_hyperbolic_group->general_multiplier;
+  GeneralMultiplier* host_general_multiplier = &host_hyperbolic_group->general_multiplier;
+
   int *device_word;
   int total_num_threads;
   Slice *slices, *next_slices, *temp_slice;

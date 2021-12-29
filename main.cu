@@ -1,5 +1,6 @@
 #include "fsa_reader.c"
 #include "multiplier.cu"
+#include "misc.cu"
 #include <stdio.h>
 
 int main(int argc, char* argv[]) {
@@ -9,9 +10,12 @@ int main(int argc, char* argv[]) {
 
   char* hg_filename = argv[1];
   HyperbolicGroup hyperbolic_group = parse_hyperbolic_group(hg_filename);
-  WordAcceptor word_acceptor = hyperbolic_group.word_acceptor;
-  GeneralMultiplier general_multiplier = hyperbolic_group.general_multiplier;
-  printf("Hyperbolicity constant = %d\n", hyperbolic_group.hyperbolicity_constant);
+  host_hyperbolic_group = (HyperbolicGroup*) malloc(sizeof(HyperbolicGroup));
+  memcpy(host_hyperbolic_group, &hyperbolic_group, sizeof(HyperbolicGroup));
+
+  WordAcceptor word_acceptor = host_hyperbolic_group->word_acceptor;
+  GeneralMultiplier general_multiplier = host_hyperbolic_group->general_multiplier;
+  printf("Hyperbolicity constant = %d\n", host_hyperbolic_group->hyperbolicity_constant);
   printf("Word acceptor states = %d\n", word_acceptor.num_states);
   printf("Word acceptor initial state = %d\n", word_acceptor.initial_state);
   printf("General multiplier alphabet = %d\n", general_multiplier.alphabet_size);
@@ -24,18 +28,16 @@ int main(int argc, char* argv[]) {
   int width = (general_multiplier.alphabet_size) * (general_multiplier.alphabet_size);
   printf("%d\n", general_multiplier.transition_matrix[initial_state * width + letter]);
   /* printf("%d\n", general_multiplier.accepting_states[initial_state]); */
-  GeneralMultiplier* device_general_multiplier;
-  cudaMalloc(&device_general_multiplier, sizeof(GeneralMultiplier));
-  copy_general_multiplier(&general_multiplier, device_general_multiplier);
+  copy_hg_to_device();
   // diagnostics<<<1,1>>>(device_general_multiplier);
 
   int word[10] = {0, 3, 1, 3, 5, 5, 3, 0};
   int generator_to_multiply = 1;
   int* result = (int*) malloc(sizeof(int) * 11);
-  multiply_with_generator(2, word, generator_to_multiply, device_general_multiplier, &general_multiplier, result);
+  int res_length = multiply_with_generator(2, word, generator_to_multiply, result);
   cudaDeviceSynchronize();
   int i;
-  for (i=0; i<3; i++) {
+  for (i=0; i<res_length; i++) {
     printf("%d ", result[i]);
   }
   printf("\n");
