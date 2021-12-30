@@ -17,7 +17,7 @@ The algorithm was described in [this paper](https://doi.org/10.1145/129712.12972
 - [x] Write variant that can multiply with words of length at most 2 delta
 
 ### Concatenator todo
-- [ ] Write serial program to pre-compute small triangles
+- [x] Write serial program to pre-compute small triangles
 - [ ] Implement actual concatenator
 - [ ] Write concatenator benchmarks
 
