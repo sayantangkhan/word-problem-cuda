@@ -3,6 +3,7 @@
 #include "misc.cu"
 #include "load_triangles.cu"
 #include <stdio.h>
+#include "shortlex_representative.cu"
 
 int main(int argc, char* argv[]) {
   if (argc < 3) {

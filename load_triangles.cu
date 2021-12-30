@@ -1,5 +1,8 @@
 #include <stdio.h>
 
+#ifndef TRIANGLES
+#define TRIANGLES
+
 typedef struct SmallTriangles {
   long num_triangles;
   int small_edge_max_length;
@@ -9,7 +12,6 @@ typedef struct SmallTriangles {
 
 SmallTriangles* host_small_triangles;
 SmallTriangles* device_small_triangles;
-
 
 void load_small_triangles(char* filename) {
   host_small_triangles = (SmallTriangles*) malloc(sizeof(SmallTriangles));
@@ -69,3 +71,5 @@ void load_small_triangles(char* filename) {
   cudaMemcpy(&device_small_triangles->edge_lengths, &device_edge_lengths, sizeof(int*), cudaMemcpyHostToDevice);
   cudaMemcpy(&device_small_triangles->triangles, &device_edges, sizeof(int*), cudaMemcpyHostToDevice);
 }
+
+#endif // TRIANGLES

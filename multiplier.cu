@@ -1,6 +1,9 @@
 #include "fsa_reader.c"
 #include <stdio.h>
 
+#ifndef MULTIPLIER
+#define MULTIPLIER
+
 #define BLOCK_SIZE 1024 // Tweak later
 
 typedef struct Slice {
@@ -8,15 +11,15 @@ typedef struct Slice {
   int end_index; // Exclusive
 } Slice;
 
-__global__ void size_one_diagnostic(int* internal_path_matrix) {
-  printf("SOD starting\n");
-  int initial_state = 1;
-  int final_state = 5;
-  int word_index = 2;
-  int word_length = 11;
-  int path = internal_path_matrix[(initial_state * 105 + final_state)*word_length + word_index];
-  printf("SOD %d\n", path);
-}
+// __global__ void size_one_diagnostic(int* internal_path_matrix) {
+//   printf("SOD starting\n");
+//   int initial_state = 1;
+//   int final_state = 5;
+//   int word_index = 2;
+//   int word_length = 11;
+//   int path = internal_path_matrix[(initial_state * 105 + final_state)*word_length + word_index];
+//   printf("SOD %d\n", path);
+// }
 
 __global__ void populate_slices(int word_length, Slice* slices) {
   int global_thread_id = blockIdx.x * blockDim.x + threadIdx.x;
@@ -113,6 +116,110 @@ __global__ void multiply_in_kernel(int* internal_path_matrix, int num_states, in
     }
   }
 }
+
+__device__ int device_multiply_with_word(int* left_word, int right_word_length, int* right_word, int* temp_word, HyperbolicGroup* device_hyperbolic_group) {
+  int actual_word_length = 0;
+
+  Slice *slices, *next_slices, *temp_slice;
+  int *internal_path_matrix, *temp_path_matrix, *to_swap;
+  int num_states = device_hyperbolic_group->general_multiplier.num_states;
+  int padding_symbol = device_hyperbolic_group->general_multiplier.alphabet_size - 1;
+
+  // Allocating and setting memory for path matrices
+  slices = (Slice*) malloc(sizeof(Slice) * (right_word_length));
+  next_slices = (Slice*) malloc(sizeof(Slice) * (right_word_length));
+  internal_path_matrix = (int*) malloc(sizeof(int) * num_states * num_states * right_word_length);
+  memset(internal_path_matrix, -1, sizeof(int) * num_states * num_states * right_word_length);
+  temp_path_matrix = (int*) malloc(sizeof(int) * num_states * num_states * right_word_length);
+  memset(temp_path_matrix, -1, sizeof(int) * num_states * num_states * right_word_length);
+
+  int padded_word_length = 1;
+  int i;
+  for (i=0; i<right_word_length; i++) {
+    int generator_to_multiply = right_word[i];
+
+    int num_blocks;
+    if ((padded_word_length) % BLOCK_SIZE == 0) {
+      num_blocks = (padded_word_length)/BLOCK_SIZE;
+    } else {
+      num_blocks = (padded_word_length)/BLOCK_SIZE + 1;
+    }
+    populate_slices<<<num_blocks, BLOCK_SIZE>>>(padded_word_length, slices);
+
+    // Computing size one paths in parallel
+    if (((padded_word_length)*num_states) % BLOCK_SIZE == 0) {
+      num_blocks = ((padded_word_length) * num_states)/BLOCK_SIZE;
+    } else {
+      num_blocks = ((padded_word_length) * num_states)/BLOCK_SIZE + 1;
+    }
+    compute_size_one_paths<<<num_blocks, BLOCK_SIZE>>>(right_word_length, padded_word_length, left_word, slices, internal_path_matrix, device_hyperbolic_group);
+
+    // Combining paths to form larger paths
+    int num_word_blocks = padded_word_length;
+    int next_num_word_blocks = num_word_blocks;
+
+    while (next_num_word_blocks > 1) {
+      // Kernel combining paths, and creating new slices
+      if (next_num_word_blocks % 2 == 0) {
+	next_num_word_blocks = next_num_word_blocks/2;
+      } else {
+	next_num_word_blocks = next_num_word_blocks/2 + 1;
+      }
+
+      int total_num_threads;
+      total_num_threads = next_num_word_blocks * num_states * num_states;
+      if (total_num_threads % BLOCK_SIZE == 0) {
+	num_blocks = total_num_threads/BLOCK_SIZE;
+      } else {
+	num_blocks = total_num_threads/BLOCK_SIZE + 1;
+      }
+      combine_paths<<<num_blocks, BLOCK_SIZE>>>(next_num_word_blocks, next_slices, num_word_blocks, slices, internal_path_matrix, temp_path_matrix, num_states, right_word_length, padded_word_length);
+
+      // Swapping slices, lengths and buffers
+      temp_slice = slices;
+      slices = next_slices;
+      next_slices = temp_slice;
+      num_word_blocks = next_num_word_blocks;
+      to_swap = internal_path_matrix;
+      internal_path_matrix = temp_path_matrix;
+      temp_path_matrix = to_swap;
+    }
+
+    int stateLabel = device_hyperbolic_group->general_multiplier.state_labels[generator_to_multiply];
+    int initial_state = device_hyperbolic_group->general_multiplier.initial_state;
+    int num_final_states = 0;
+    int* device_final_states = (int*) malloc(sizeof(int) * num_states);
+    int j;
+    for(j=0; j<num_states; j++) {
+      if(device_hyperbolic_group->general_multiplier.accepting_states[j] == stateLabel) {
+	device_final_states[num_final_states] = j;
+	num_final_states++;
+      }
+    }
+
+    multiply_in_kernel<<<1,1>>>(internal_path_matrix, num_states, right_word_length, padded_word_length, device_final_states, num_final_states, initial_state, temp_word);
+
+    // Cleaning up values
+    int k;
+    for (k=0; k<right_word_length; k++) {
+      left_word[k] = temp_word[k];
+      temp_word[k] = padding_symbol;
+    }
+
+    memset(internal_path_matrix, -1, sizeof(int) * num_states * num_states * right_word_length);
+    memset(temp_path_matrix, -1, sizeof(int) * num_states * num_states * right_word_length);
+
+    actual_word_length = padded_word_length;
+    while (left_word[actual_word_length - 1] == padding_symbol) {
+      actual_word_length--;
+    }
+
+    padded_word_length = actual_word_length + 1;
+  }
+
+  return actual_word_length;
+}
+
 
 int multiply_with_word(int left_word_length, int* left_word, int right_word_length, int* right_word, int* result) {
   int i;
@@ -240,3 +347,5 @@ int multiply_with_word(int left_word_length, int* left_word, int right_word_leng
 int multiply_with_generator(int word_length, int* word, int generator_to_multiply, int* result) {
   return multiply_with_word(word_length, word, 1, &generator_to_multiply, result);
 }
+
+#endif // MULTIPLIER
