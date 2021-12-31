@@ -11,6 +11,7 @@ The algorithm was described in [this paper](https://doi.org/10.1145/129712.12972
 - [x] Move FSAs to global memory
 - [ ] Run benchmarks on other hyperbolic groups like the Von Dyck groups
 - [x] Test that ShortLex is closed under inversion (experiments seem to suggest so)
+- [x] Make global variables on GPU work out
 
 ### Multiplier todo
 - [x] Modify multiplier to return length of word

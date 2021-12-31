@@ -11,9 +11,10 @@ typedef struct SmallTriangles {
 } SmallTriangles;
 
 SmallTriangles* host_small_triangles;
-SmallTriangles* device_small_triangles;
+__device__ SmallTriangles* device_small_triangles;
 
 void load_small_triangles(char* filename) {
+  SmallTriangles* temp_device_small_triangles;
   host_small_triangles = (SmallTriangles*) malloc(sizeof(SmallTriangles));
   host_small_triangles->small_edge_max_length = host_hyperbolic_group->hyperbolicity_constant;
   FILE* fp = fopen(filename, "r");
@@ -59,17 +60,19 @@ void load_small_triangles(char* filename) {
   }
 
   // Copying data structure to GPU now
-  cudaMalloc(&device_small_triangles, sizeof(SmallTriangles));
-  cudaMemcpy(&device_small_triangles->num_triangles, &host_small_triangles->num_triangles, sizeof(long), cudaMemcpyHostToDevice);
-  cudaMemcpy(&device_small_triangles->small_edge_max_length, &host_small_triangles->small_edge_max_length, sizeof(int), cudaMemcpyHostToDevice);
+  cudaMalloc(&temp_device_small_triangles, sizeof(SmallTriangles));
+  cudaMemcpy(&temp_device_small_triangles->num_triangles, &host_small_triangles->num_triangles, sizeof(long), cudaMemcpyHostToDevice);
+  cudaMemcpy(&temp_device_small_triangles->small_edge_max_length, &host_small_triangles->small_edge_max_length, sizeof(int), cudaMemcpyHostToDevice);
 
   int *device_edge_lengths, *device_edges;
   cudaMalloc(&device_edge_lengths, sizeof(int) * 3 * num_triangles);
   cudaMalloc(&device_edges, sizeof(int) * max_length * 4 * num_triangles);
   cudaMemcpy(device_edge_lengths, host_small_triangles->edge_lengths, sizeof(int) * 3 * num_triangles, cudaMemcpyHostToDevice);
   cudaMemcpy(device_edges, host_small_triangles->triangles, sizeof(int) * max_length * 4 * num_triangles, cudaMemcpyHostToDevice);
-  cudaMemcpy(&device_small_triangles->edge_lengths, &device_edge_lengths, sizeof(int*), cudaMemcpyHostToDevice);
-  cudaMemcpy(&device_small_triangles->triangles, &device_edges, sizeof(int*), cudaMemcpyHostToDevice);
+  cudaMemcpy(&temp_device_small_triangles->edge_lengths, &device_edge_lengths, sizeof(int*), cudaMemcpyHostToDevice);
+  cudaMemcpy(&temp_device_small_triangles->triangles, &device_edges, sizeof(int*), cudaMemcpyHostToDevice);
+
+  cudaMemcpyToSymbol(device_small_triangles, &temp_device_small_triangles, sizeof(SmallTriangles*));
 }
 
 #endif // TRIANGLES

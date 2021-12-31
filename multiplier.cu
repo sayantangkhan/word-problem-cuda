@@ -29,7 +29,7 @@ __global__ void populate_slices(int word_length, Slice* slices) {
     }
 }
 
-__global__ void compute_size_one_paths(int max_length, int word_length, int* word, Slice* slices, int* internal_path_matrix, HyperbolicGroup* device_hyperbolic_group) {
+__global__ void compute_size_one_paths(int max_length, int word_length, int* word, Slice* slices, int* internal_path_matrix) {
   int global_thread_id = blockIdx.x * blockDim.x + threadIdx.x;
   int num_states = device_hyperbolic_group->general_multiplier.num_states;
   if (global_thread_id < word_length * num_states) {
@@ -152,7 +152,7 @@ __device__ int device_multiply_with_word(int* left_word, int right_word_length, 
     } else {
       num_blocks = ((padded_word_length) * num_states)/BLOCK_SIZE + 1;
     }
-    compute_size_one_paths<<<num_blocks, BLOCK_SIZE>>>(right_word_length, padded_word_length, left_word, slices, internal_path_matrix, device_hyperbolic_group);
+    compute_size_one_paths<<<num_blocks, BLOCK_SIZE>>>(right_word_length, padded_word_length, left_word, slices, internal_path_matrix);
 
     // Combining paths to form larger paths
     int num_word_blocks = padded_word_length;
@@ -273,7 +273,7 @@ int multiply_with_word(int left_word_length, int* left_word, int right_word_leng
     } else {
       num_blocks = ((padded_word_length) * num_states)/BLOCK_SIZE + 1;
     }
-    compute_size_one_paths<<<num_blocks, BLOCK_SIZE>>>(max_length, padded_word_length, device_left_word, slices, internal_path_matrix, device_hyperbolic_group);
+    compute_size_one_paths<<<num_blocks, BLOCK_SIZE>>>(max_length, padded_word_length, device_left_word, slices, internal_path_matrix);
 
   // Combining paths to form larger paths
   int num_word_blocks = padded_word_length;

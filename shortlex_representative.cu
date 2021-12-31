@@ -2,7 +2,7 @@
 #include "load_triangles.cu"
 #include "multiplier.cu"
 
-__global__ void compute_initial_segments(int word_length, int* device_word, int* device_result, int* temp_word, Slice* slices, int num_threads, int threshold, HyperbolicGroup* device_hyperbolic_group) {
+__global__ void compute_initial_segments(int word_length, int* device_word, int* device_result, int* temp_word, Slice* slices, int num_threads, int threshold) {
   int global_thread_id = blockIdx.x * blockDim.x + threadIdx.x;
   if (global_thread_id >= num_threads) {
       return;
@@ -54,7 +54,7 @@ int compute_shortlex_representative(int word_length, int* word, int* result) {
     num_blocks = num_threads/BLOCK_SIZE + 1;
   }
 
-  compute_initial_segments<<<num_blocks, BLOCK_SIZE>>>(word_length, device_word, device_result, temp_word, slices, num_threads, threshold, device_hyperbolic_group);
+  compute_initial_segments<<<num_blocks, BLOCK_SIZE>>>(word_length, device_word, device_result, temp_word, slices, num_threads, threshold);
 
   return 0;
 }

@@ -31,7 +31,7 @@ typedef struct HyperbolicGroup {
 
 // Defining global variable for the host and device
 HyperbolicGroup* host_hyperbolic_group;
-HyperbolicGroup* device_hyperbolic_group;
+__device__ HyperbolicGroup* device_hyperbolic_group;
 
 HyperbolicGroup parse_hyperbolic_group(char* filename) {
   FILE* fp = fopen(filename, "r");
