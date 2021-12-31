@@ -2,6 +2,8 @@
 #include "load_triangles.cu"
 #include "multiplier.cu"
 
+#define LOCAL_BLOCK_SIZE 512
+
 __global__ void compute_initial_segments(int word_length, int* device_word, int* device_result, int* temp_word, Slice* slices, int num_threads, int threshold) {
   int global_thread_id = blockIdx.x * blockDim.x + threadIdx.x;
   if (global_thread_id >= num_threads) {
@@ -22,9 +24,17 @@ __global__ void compute_initial_segments(int word_length, int* device_word, int*
 
   int thread_word_length = right_index - left_index;
   int* thread_word = &device_word[left_index];
+  int* thread_temp_word = &temp_word[left_index];
   int* thread_result = &device_result[left_index];
 
-  right_index = left_index + device_multiply_with_word(thread_result, right_index - left_index, thread_word, temp_word, device_hyperbolic_group);
+  int new_length = device_multiply_with_word(0, thread_result, thread_word_length, thread_word, thread_temp_word);
+
+  printf("Thread id = %d: length = %d \n", global_thread_id, new_length);
+  for (i=left_index; i<right_index; i++) {
+    printf("Thread %d: %d\n", global_thread_id, device_result[i]);
+  }
+
+  right_index = left_index + new_length;
 }
 
 int compute_shortlex_representative(int word_length, int* word, int* result) {
@@ -48,13 +58,13 @@ int compute_shortlex_representative(int word_length, int* word, int* result) {
   cudaMalloc(&next_slices, sizeof(Slice)*num_threads);
 
   int num_blocks;
-  if (num_threads % BLOCK_SIZE == 0) {
-    num_blocks = num_threads/BLOCK_SIZE;
+  if (num_threads % LOCAL_BLOCK_SIZE == 0) {
+    num_blocks = num_threads/LOCAL_BLOCK_SIZE;
   } else {
-    num_blocks = num_threads/BLOCK_SIZE + 1;
+    num_blocks = num_threads/LOCAL_BLOCK_SIZE + 1;
   }
 
-  compute_initial_segments<<<num_blocks, BLOCK_SIZE>>>(word_length, device_word, device_result, temp_word, slices, num_threads, threshold);
+  compute_initial_segments<<<num_blocks, LOCAL_BLOCK_SIZE>>>(word_length, device_word, device_result, temp_word, slices, num_threads, threshold);
 
   return 0;
 }

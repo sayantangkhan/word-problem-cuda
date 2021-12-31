@@ -117,8 +117,23 @@ __global__ void multiply_in_kernel(int* internal_path_matrix, int num_states, in
   }
 }
 
-__device__ int device_multiply_with_word(int* left_word, int right_word_length, int* right_word, int* temp_word, HyperbolicGroup* device_hyperbolic_group) {
+__device__ int device_multiply_with_word(int left_word_length, int* left_word, int right_word_length, int* right_word, int* temp_word) {
+  // This function assumes left word is always a geodesic. The right word need not be.
   int actual_word_length = 0;
+
+  // Dealing with the special cases of the empty left or right word
+  if (right_word_length == 0) {
+    return left_word_length;
+  }
+  if (left_word_length == 0) {
+    memcpy(left_word, right_word, sizeof(int));
+    left_word_length++;
+    right_word = &right_word[1];
+    right_word_length--;
+  }
+  if (right_word_length == 0) {
+    return left_word_length;
+  }
 
   Slice *slices, *next_slices, *temp_slice;
   int *internal_path_matrix, *temp_path_matrix, *to_swap;
@@ -133,9 +148,20 @@ __device__ int device_multiply_with_word(int* left_word, int right_word_length, 
   temp_path_matrix = (int*) malloc(sizeof(int) * num_states * num_states * right_word_length);
   memset(temp_path_matrix, -1, sizeof(int) * num_states * num_states * right_word_length);
 
-  int padded_word_length = 1;
+  int padded_word_length = left_word_length + 1;
   int i;
   for (i=0; i<right_word_length; i++) {
+    // Dealing with the case when left word cancels out to identity
+    if (padded_word_length == 1) {
+      padded_word_length++;
+      left_word[0] = right_word[i];
+      left_word[1] = padding_symbol;
+      i++;
+      if (i == right_word_length) {
+	return 1;
+      }
+    }
+
     int generator_to_multiply = right_word[i];
 
     int num_blocks;
@@ -210,7 +236,7 @@ __device__ int device_multiply_with_word(int* left_word, int right_word_length, 
     memset(temp_path_matrix, -1, sizeof(int) * num_states * num_states * right_word_length);
 
     actual_word_length = padded_word_length;
-    while (left_word[actual_word_length - 1] == padding_symbol) {
+    while ((left_word[actual_word_length - 1] == padding_symbol) && (actual_word_length > 0)) {
       actual_word_length--;
     }
 
@@ -222,7 +248,24 @@ __device__ int device_multiply_with_word(int* left_word, int right_word_length, 
 
 
 int multiply_with_word(int left_word_length, int* left_word, int right_word_length, int* right_word, int* result) {
+  // This function assumes left word is always a geodesic
   int i;
+
+  // Dealing with the special cases of the empty left or right word
+  if (right_word_length == 0) {
+    memcpy(result, left_word, sizeof(int) * left_word_length);
+    return left_word_length;
+  }
+  if (left_word_length == 0) {
+    memcpy(result, right_word, sizeof(int));
+    left_word_length++;
+    right_word = &right_word[1];
+    right_word_length--;
+  }
+  if (right_word_length == 0) {
+    return left_word_length;
+  }
+
 
   GeneralMultiplier* host_gm = &host_hyperbolic_group->general_multiplier;
 
@@ -256,6 +299,17 @@ int multiply_with_word(int left_word_length, int* left_word, int right_word_leng
 
   int padded_word_length = left_word_length + 1;
   for (i=0; i<right_word_length; i++) {
+    if (padded_word_length == 1) {
+      padded_word_length++;
+      cudaMemcpy(&device_left_word[0], &right_word[i], sizeof(int), cudaMemcpyHostToDevice);
+      cudaMemcpy(&device_left_word[1], &padding_symbol, sizeof(int), cudaMemcpyHostToDevice);
+      i++;
+      if (i == right_word_length) {
+	result[0] = right_word[i-1];
+	return 1;
+      }
+    }
+
     int generator_to_multiply = right_word[i];
 
     // Populate slices in parallel

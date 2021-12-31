@@ -19,6 +19,7 @@ The algorithm was described in [this paper](https://doi.org/10.1145/129712.12972
 
 ### Concatenator todo
 - [x] Write serial program to pre-compute small triangles
+- [ ] Fix the bugs in compute_initial_segments
 - [ ] Implement actual concatenator
 - [ ] Write concatenator benchmarks
 
