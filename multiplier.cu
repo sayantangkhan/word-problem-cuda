@@ -120,6 +120,7 @@ __global__ void multiply_in_kernel(int* internal_path_matrix, int num_states, in
 __device__ int device_multiply_with_word(int left_word_length, int* left_word, int right_word_length, int* right_word, int* temp_word) {
   // This function assumes left word is always a geodesic. The right word need not be.
   int actual_word_length = 0;
+  int max_word_length = left_word_length + right_word_length;
 
   // Dealing with the special cases of the empty left or right word
   if (right_word_length == 0) {
@@ -141,12 +142,12 @@ __device__ int device_multiply_with_word(int left_word_length, int* left_word, i
   int padding_symbol = device_hyperbolic_group->general_multiplier.alphabet_size - 1;
 
   // Allocating and setting memory for path matrices
-  slices = (Slice*) malloc(sizeof(Slice) * (right_word_length));
-  next_slices = (Slice*) malloc(sizeof(Slice) * (right_word_length));
-  internal_path_matrix = (int*) malloc(sizeof(int) * num_states * num_states * right_word_length);
-  memset(internal_path_matrix, -1, sizeof(int) * num_states * num_states * right_word_length);
-  temp_path_matrix = (int*) malloc(sizeof(int) * num_states * num_states * right_word_length);
-  memset(temp_path_matrix, -1, sizeof(int) * num_states * num_states * right_word_length);
+  slices = (Slice*) malloc(sizeof(Slice) * (max_word_length));
+  next_slices = (Slice*) malloc(sizeof(Slice) * (max_word_length));
+  internal_path_matrix = (int*) malloc(sizeof(int) * num_states * num_states * max_word_length);
+  memset(internal_path_matrix, -1, sizeof(int) * num_states * num_states * max_word_length);
+  temp_path_matrix = (int*) malloc(sizeof(int) * num_states * num_states * max_word_length);
+  memset(temp_path_matrix, -1, sizeof(int) * num_states * num_states * max_word_length);
 
   int padded_word_length = left_word_length + 1;
   int i;
@@ -178,7 +179,7 @@ __device__ int device_multiply_with_word(int left_word_length, int* left_word, i
     } else {
       num_blocks = ((padded_word_length) * num_states)/BLOCK_SIZE + 1;
     }
-    compute_size_one_paths<<<num_blocks, BLOCK_SIZE>>>(right_word_length, padded_word_length, left_word, slices, internal_path_matrix);
+    compute_size_one_paths<<<num_blocks, BLOCK_SIZE>>>(max_word_length, padded_word_length, left_word, slices, internal_path_matrix);
 
     // Combining paths to form larger paths
     int num_word_blocks = padded_word_length;
@@ -199,7 +200,7 @@ __device__ int device_multiply_with_word(int left_word_length, int* left_word, i
       } else {
 	num_blocks = total_num_threads/BLOCK_SIZE + 1;
       }
-      combine_paths<<<num_blocks, BLOCK_SIZE>>>(next_num_word_blocks, next_slices, num_word_blocks, slices, internal_path_matrix, temp_path_matrix, num_states, right_word_length, padded_word_length);
+      combine_paths<<<num_blocks, BLOCK_SIZE>>>(next_num_word_blocks, next_slices, num_word_blocks, slices, internal_path_matrix, temp_path_matrix, num_states, max_word_length, padded_word_length);
 
       // Swapping slices, lengths and buffers
       temp_slice = slices;
@@ -223,17 +224,17 @@ __device__ int device_multiply_with_word(int left_word_length, int* left_word, i
       }
     }
 
-    multiply_in_kernel<<<1,1>>>(internal_path_matrix, num_states, right_word_length, padded_word_length, device_final_states, num_final_states, initial_state, temp_word);
+    multiply_in_kernel<<<1,1>>>(internal_path_matrix, num_states, max_word_length, padded_word_length, device_final_states, num_final_states, initial_state, temp_word);
 
     // Cleaning up values
     int k;
-    for (k=0; k<right_word_length; k++) {
+    for (k=0; k<max_word_length; k++) {
       left_word[k] = temp_word[k];
       temp_word[k] = padding_symbol;
     }
 
-    memset(internal_path_matrix, -1, sizeof(int) * num_states * num_states * right_word_length);
-    memset(temp_path_matrix, -1, sizeof(int) * num_states * num_states * right_word_length);
+    memset(internal_path_matrix, -1, sizeof(int) * num_states * num_states * max_word_length);
+    memset(temp_path_matrix, -1, sizeof(int) * num_states * num_states * max_word_length);
 
     actual_word_length = padded_word_length;
     while ((left_word[actual_word_length - 1] == padding_symbol) && (actual_word_length > 0)) {
