@@ -70,6 +70,6 @@ int compute_shortlex_representative(int word_length, int* word, int* result) {
 }
 
 int compute_shortlex_representative_naive(int word_length, int* word, int* result) {
-  int left_word[1] = word[0];
+  int left_word[1] = {word[0]};
   return multiply_with_word(1, left_word, word_length - 1, &word[1], result);
 }
